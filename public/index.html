@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Eren Aktan – Yayın Bingosu</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-title">EREN AKTAN</div>
+        <div class="brand-sub">YAYIN BİNGOSU</div>
+      </div>
+      <div class="right">
+        <div class="pill" id="roomPill">Oturum: —</div>
+        <div class="pill" id="phasePill">Durum: —</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">İzleyici Paneli</div>
+        <div class="card-sub">Yayıncı “oldu” dediği anda kutu açılır. Açılan kutuları sen işaretlersin. Bingo yapınca “BINGO!” bas.</div>
+      </div>
+
+      <div class="grid" id="grid"></div>
+
+      <div class="controls">
+        <button class="btn" id="bingoBtn" disabled>BINGO!</button>
+        <div class="hint" id="hint"></div>
+      </div>
+
+      <div class="status-row" id="statusRow"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">Skor Tahtası</div>
+        <div class="card-sub">En çok işaretleyen en hızlı değil, ama eğlenceli bir nabız verir.</div>
+      </div>
+      <div class="players" id="players"></div>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="joinModal">
+    <div class="modal">
+      <div class="modal-title">Oturuma Katıl</div>
+      <div class="modal-sub">Yayıncıdan aldığın oturum kodunu ve şifreyi gir.</div>
+
+      <div class="form">
+        <label>Oturum Kodu</label>
+        <input id="roomId" placeholder="Örn: Q7K9M2" autocomplete="off" />
+
+        <label>Oturum Şifresi</label>
+        <input id="joinPass" placeholder="••••••••" type="password" autocomplete="off" />
+
+        <label>İsmin (ekranda görünecek)</label>
+        <input id="displayName" placeholder="Serhat" maxlength="24" autocomplete="off" />
+
+        <button class="btn primary" id="joinBtn">Katıl</button>
+        <div class="error" id="joinError"></div>
+
+        <div class="tiny">Not: Buradaki “anti-hile” mantığı şöyle: Yayıncı bir kutuyu açmadan o kutuyu işaretleyemezsin. Önceden full işaretleyip “bingo” deme olayı çöker.</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
