@@ -1,3 +1,6 @@
+const qs = new URLSearchParams(location.search);
+if (qs.get('debug') === '1') document.body.classList.add('debug-overlay');
+
 /* global io */
 const socket = io();
 
@@ -24,9 +27,13 @@ const rejectBtn = document.getElementById("rejectBtn");
 
 const playersEl = document.getElementById("players");
 
+// Audio
+const audioFile = document.getElementById("audioFile");
+const uploadAudioBtn = document.getElementById("uploadAudioBtn");
+const sendAlertBtn = document.getElementById("sendAlertBtn");
+const audioStatus = document.getElementById("audioStatus");
+
 let state = null;
-let roomId = null;
-let hostPass = null;
 
 function updateTop(){
   roomPill.textContent = `Oturum: ${state?.roomId || "—"}`;
@@ -43,16 +50,22 @@ function renderBoard(){
 
     const badge = document.createElement("div");
     badge.className = "badge";
-    badge.textContent = cell.unlocked ? "AÇIK" : "KAPALI";
+    if (cell.unlocked) badge.textContent = "AÇIK";
+    else {
+      const cnt = state?.stats?.votesByCell?.[cell.id] || 0;
+      badge.textContent = cnt ? `OY:${cnt}` : "KAPALI";
+    }
     btn.appendChild(badge);
 
-    btn.appendChild(document.createTextNode(cell.label));
+    const txt = document.createElement("div");
+    txt.className = "cell-text";
+    txt.textContent = cell.label;
+    btn.appendChild(txt);
 
     btn.addEventListener("click", () => {
       if (!state) return;
       if (state.phase === "ended") return;
-      const next = !cell.unlocked;
-      socket.emit("hostUnlockCell", { cellId: cell.id, unlocked: next }, (res) => {
+      socket.emit("hostUnlockCell", { cellId: cell.id, unlocked: !cell.unlocked }, (res) => {
         if (!res?.ok) hint.textContent = res?.error || "İşlem başarısız.";
       });
     });
@@ -77,7 +90,9 @@ function renderPlayers(){
     name.textContent = p.name;
     const score = document.createElement("div");
     score.className = "score";
-    score.textContent = `${p.markedCount} kutu`;
+    const activeDot = p.isActive ? "●" : "○";
+    const voted = p.hasVoted ? "✓" : "";
+    score.textContent = `${activeDot} ${p.markedCount} kutu ${voted}`;
     row.appendChild(name);
     row.appendChild(score);
     playersEl.appendChild(row);
@@ -96,7 +111,6 @@ function renderPending(){
     rejectBtn.disabled = true;
     return;
   }
-
   if (!state.pendingWin) {
     title.textContent = "Bekleyen kazanan: —";
     sub.textContent = "Henüz kimse bingo iddiası yapmadı.";
@@ -104,12 +118,19 @@ function renderPending(){
     rejectBtn.disabled = true;
     return;
   }
-
   title.textContent = `Bekleyen kazanan: ${state.pendingWin.name}`;
-  const line = state.pendingWin.line?.join(", ") || "—";
-  sub.textContent = `İddia satırı: ${line}. Onaylarsan oyun biter.`;
+  sub.textContent = `İddia satırı: ${(state.pendingWin.line||[]).join(", ")}`;
   approveBtn.disabled = false;
   rejectBtn.disabled = false;
+}
+
+function renderStats(){
+  if (!state?.stats) return;
+  const s = state.stats;
+  const fv = s.firstVoterName ? `İlk oy: ${s.firstVoterName}` : "İlk oy: —";
+  hint.textContent = `Aktif: ${s.activePlayers}/${s.totalPlayers} — Oy kullanan: ${s.votersCount} — Eşik: ${s.requiredVotes} oy / ${Math.round((s.voteWindowMs||6000)/1000)}sn — ${fv}`;
+  if (audioStatus) audioStatus.textContent = s.hasSound ? `Ses yüklü (id: ${s.soundId}).` : "Ses dosyası yok.";
+  if (sendAlertBtn) sendAlertBtn.disabled = !s.hasSound;
 }
 
 function hydrateUI(){
@@ -117,13 +138,11 @@ function hydrateUI(){
   renderBoard();
   renderPlayers();
   renderPending();
+  renderStats();
   resetBtn.disabled = !state;
-  if (state && state.stats) {
-    hint.textContent = `Aktif: ${state.stats.activePlayers}/${state.stats.totalPlayers} — Doğrulama eşiği: ${state.stats.requiredVotes} oy / ${Math.round((state.stats.voteWindowMs||6000)/1000)}sn`;
-  }
 }
 
-createRoomBtn.addEventListener("click", async () => {
+document.getElementById("createRoomBtn")?.addEventListener("click", async () => {
   createOut.textContent = "";
   const jp = (newJoinPass.value || "").trim();
   const hp = (newHostPass.value || "").trim();
@@ -147,15 +166,14 @@ createRoomBtn.addEventListener("click", async () => {
     İzleyici linki: <code>${location.origin}/?room=${rid}</code><br/>
     Host linki: <code>${location.origin}/host.html</code>
   `;
-  // convenience: auto-fill join
   roomIdEl.value = rid;
   hostPassEl.value = hp;
 });
 
-connectBtn.addEventListener("click", () => {
+document.getElementById("connectBtn")?.addEventListener("click", () => {
   connectErr.textContent = "";
-  roomId = (roomIdEl.value || "").trim().toUpperCase();
-  hostPass = (hostPassEl.value || "").trim();
+  const roomId = (roomIdEl.value || "").trim().toUpperCase();
+  const hostPass = (hostPassEl.value || "").trim();
   if (!roomId || !hostPass) {
     connectErr.textContent = "Oturum kodu ve host şifresi gerekli.";
     return;
@@ -170,21 +188,54 @@ connectBtn.addEventListener("click", () => {
   });
 });
 
-approveBtn.addEventListener("click", () => {
+approveBtn?.addEventListener("click", () => {
   socket.emit("hostResolveWin", { decision: "approve" }, (res) => {
     if (!res?.ok) hint.textContent = res?.error || "Onay başarısız.";
   });
 });
-rejectBtn.addEventListener("click", () => {
+rejectBtn?.addEventListener("click", () => {
   socket.emit("hostResolveWin", { decision: "reject" }, (res) => {
     if (!res?.ok) hint.textContent = res?.error || "Reddetme başarısız.";
   });
 });
-resetBtn.addEventListener("click", () => {
+resetBtn?.addEventListener("click", () => {
   socket.emit("hostResetGame", {}, (res) => {
-    if (!res?.ok) hint.textContent = res?.error || "Reset başarısız.";
-    else hint.textContent = "Oyun sıfırlandı.";
+    hint.textContent = res?.ok ? "Oyun sıfırlandı." : (res?.error || "Reset başarısız.");
   });
+});
+
+/* Audio upload & alert */
+uploadAudioBtn?.addEventListener("click", async () => {
+  if (!audioFile?.files?.length) {
+    audioStatus.textContent = "Önce bir audio dosyası seç.";
+    return;
+  }
+  const file = audioFile.files[0];
+  audioStatus.textContent = "Yükleniyor…";
+  try {
+    const buf = await file.arrayBuffer();
+    socket.emit("hostUploadSound", { mime: file.type || "audio/mpeg", data: buf }, (res) => {
+      audioStatus.textContent = res?.ok ? "Yüklendi." : (res?.error || "Yükleme başarısız.");
+    });
+  } catch {
+    audioStatus.textContent = "Dosya okunamadı.";
+  }
+});
+
+sendAlertBtn?.addEventListener("click", () => {
+  socket.emit("hostSendAlert", {}, (res) => {
+    audioStatus.textContent = res?.ok ? "Uyarı gönderildi." : (res?.error || "Uyarı gönderilemedi.");
+  });
+});
+
+/* Password eye */
+document.addEventListener("click", (e) => {
+  const btn = e.target?.closest?.(".pw-eye");
+  if (!btn) return;
+  const targetId = btn.getAttribute("data-target");
+  const inp = document.getElementById(targetId);
+  if (!inp) return;
+  inp.type = (inp.type === "password") ? "text" : "password";
 });
 
 socket.on("state", (s) => {
@@ -192,5 +243,4 @@ socket.on("state", (s) => {
   hydrateUI();
 });
 
-// initial UI state
 hydrateUI();

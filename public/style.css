@@ -274,3 +274,139 @@ input:focus{ border-color: rgba(138,125,255,.55); box-shadow: 0 0 0 3px rgba(138
   background: rgba(255,204,102,.14);
   border-color: rgba(255,204,102,.35);
 }
+
+
+/* PNG board + overlay */
+.board-shell{
+  position: relative;
+  width: min(720px, 100%);
+  margin: 12px auto 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow: var(--shadow);
+}
+.board-img{ width:100%; display:block; }
+.board-overlay{
+  position:absolute;
+  left: 6.8%;
+  right: 6.8%;
+  top: 25.8%;
+  bottom: 13.0%;
+  display:grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 1.6%;
+}
+
+/* Overlay cells */
+.cell{
+  min-height: unset;
+  background: rgba(0,0,0,0.0);
+  border: 2px solid rgba(255,255,255,.12);
+  box-shadow: none;
+  border-radius: 10px;
+}
+.cell:hover{ transform: none; filter: none; }
+.cell.locked{ opacity: .25; }
+.cell.unlocked{ border-color: rgba(138,125,255,.45); background: rgba(138,125,255,.06); }
+.cell.marked{ border-color: rgba(59,214,113,.80); background: rgba(59,214,113,.16); }
+.badge{ top: 8px; right: 8px; font-size: 10px; }
+
+/* Lists */
+.lists-wrap{
+  padding: 12px 14px 16px;
+  display:grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+.listbox{
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.04);
+  padding: 10px 12px;
+}
+.listtitle{
+  font-weight: 900;
+  color: rgba(255,255,255,.88);
+  font-size: 12px;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+.listcontent{
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+  max-height: 160px;
+  overflow:auto;
+  white-space: pre-wrap;
+}
+
+/* Password eye */
+.pw-wrap{ position: relative; }
+.pw-wrap input{ padding-right: 42px; }
+.pw-eye{
+  position:absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.9);
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+/* Audio controls */
+.audio-wrap{ padding: 12px 14px 16px; }
+.audio-row{ display:flex; gap: 10px; flex-wrap: wrap; align-items:center; }
+#audioFile{ flex: 1 1 280px; }
+
+/* Confetti canvas */
+#confettiCanvas{
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999;
+}
+
+
+/* Ensure overlay is clickable on top of the PNG */
+.board-img{ position: relative; z-index: 1; }
+.board-overlay{ z-index: 2; pointer-events: auto; }
+.cell{ cursor: pointer; pointer-events: auto; }
+
+/* Debug overlay (add ?debug=1 to URL) */
+body.debug-overlay .board-overlay{
+  outline: 2px dashed rgba(255,0,0,.55);
+  background: rgba(255,0,0,.06);
+}
+body.debug-overlay .cell{
+  outline: 1px dashed rgba(255,0,0,.35);
+  background: rgba(255,0,0,.08) !important;
+}
+
+
+/* Cell label text (centered, stable) */
+.cell{
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cell-text{
+  width: 92%;
+  text-align: center;
+  white-space: pre-line;
+  line-height: 1.08;
+  font-weight: 900;
+  color: rgba(255,255,255,.92);
+  text-shadow: 0 1px 8px rgba(0,0,0,.55);
+  letter-spacing: .2px;
+  font-size: clamp(9px, 1.35vw, 16px);
+  user-select: none;
+  pointer-events: none;
+}

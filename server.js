@@ -6,14 +6,15 @@ const { Server } = require("socket.io");
 
 const PORT = process.env.PORT || 3000;
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
 app.use(express.static(path.join(__dirname, "public")));
+app.set("trust proxy", 1);
 
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
 /** ---------- Game config ---------- */
-const BOARD_SIZE = 4; // 4x4
+const BOARD_SIZE = 4;
 const CELLS = [
   { id: "c0",  label: "SİKİMİ\nAÇICAM" },
   { id: "c1",  label: "DANS\n(TERCİHENTWERK)" },
@@ -54,13 +55,22 @@ function makeLines() {
 }
 const WIN_LINES = makeLines();
 
-/** ---------- Crowd validation parameters ---------- */
-const ACTIVE_WINDOW_MS = 25_000;  // who is "active"
-const VOTE_WINDOW_MS   = 6_000;   // crowd window
-const VOTE_FAIL_MS     = 10_000;  // if crowd doesn't follow within this -> wrong pick
-const COOLDOWN_MS      = 10_000;  // penalty lockout
+/** ---------- Crowd validation ---------- */
+const ACTIVE_WINDOW_MS = 25_000;
+const VOTE_WINDOW_MS   = 6_000;
+const VOTE_FAIL_MS     = 10_000;
+const COOLDOWN_MS      = 10_000;
 const MIN_VOTES        = 2;
 const MAX_VOTES        = 12;
+
+
+/** ---------- Anti-abuse ---------- */
+const MAX_PLAYERS_PER_IP = 1;          // "strict": same IP'den 1 oyuncu (istersen 2 yap)
+const MAX_PLAYERS_PER_DEVICE = 1;      // aynı cihaz imzasından 1 oyuncu
+
+/** ---------- Audio (host uploads) ---------- */
+const MAX_AUDIO_BYTES = 1_250_000;
+const ALLOWED_AUDIO_PREFIX = "audio/";
 
 /** ---------- In-memory rooms ---------- */
 const rooms = new Map();
@@ -76,6 +86,33 @@ function sha256(s) {
 }
 function now() { return Date.now(); }
 
+
+function getClientIpFromSocket(socket){
+  const xf = socket.handshake?.headers?.["x-forwarded-for"];
+  if (xf) return String(xf).split(",")[0].trim();
+  const addr = socket.handshake?.address || socket.conn?.remoteAddress || "";
+  return String(addr);
+}
+function hashKey(s){
+  return crypto.createHash("sha256").update(String(s || "")).digest("hex");
+}
+
+// simple token bucket rate limiter (in-memory)
+const buckets = new Map(); // key -> {tokens,last}
+function allowAction(key, capacity, refillPerSec, cost=1){
+  const t = Date.now();
+  let b = buckets.get(key);
+  if (!b) b = { tokens: capacity, last: t };
+  const dt = Math.max(0, (t - b.last) / 1000);
+  b.tokens = Math.min(capacity, b.tokens + dt * refillPerSec);
+  b.last = t;
+  if (b.tokens < cost) { buckets.set(key, b); return false; }
+  b.tokens -= cost;
+  buckets.set(key, b);
+  return true;
+}
+
+
 function createRoom({ joinPassword, hostPassword }) {
   let roomId;
   do { roomId = randRoomId(); } while (rooms.has(roomId));
@@ -88,13 +125,18 @@ function createRoom({ joinPassword, hostPassword }) {
     hostHash: sha256(hostPassword),
     createdAt: now(),
     board,
-    players: new Map(),        // playerId -> player state
-    playerSockets: new Map(),  // playerId -> Set(socketId)
-    votes: new Map(),          // cellId -> Map(playerId -> timestamp)
+    players: new Map(),
+    playerSockets: new Map(),
+    votes: new Map(),
     hostSockets: new Set(),
     pendingWin: null,
     winner: null,
     phase: "running",
+    firstVoter: null,
+    sound: null,
+    ipToPlayers: new Map(),     // ipHash -> Set(playerId)
+    devToPlayer: new Map(),     // devHash -> playerId
+    _broadcastQueued: false,
   };
 
   rooms.set(roomId, room);
@@ -113,13 +155,19 @@ function getActiveCount(room) {
 function calcRequiredVotes(room) {
   const active = Math.max(1, getActiveCount(room));
   const total = Math.max(1, room.players.size);
-
-  // Active drives most of it; total joiners add a small (clamped) contribution.
-  const reqActive = Math.ceil(active * 0.12);       // 12% of active
-  const reqTotal  = Math.min(8, Math.ceil(total * 0.02)); // 2% of total, max 8
+  const reqActive = Math.ceil(active * 0.12);
+  const reqTotal  = Math.min(8, Math.ceil(total * 0.02));
   const req = Math.max(MIN_VOTES, reqActive, reqTotal);
-
   return Math.min(MAX_VOTES, req);
+}
+
+function getVoters(room) {
+  const voters = [];
+  for (const [playerId, p] of room.players.entries()) {
+    if (p.hasVoted) voters.push({ playerId, name: p.name, votedAt: p.firstVotedAt || p.joinedAt });
+  }
+  voters.sort((a,b) => a.votedAt - b.votedAt);
+  return voters;
 }
 
 function publicRoomState(room) {
@@ -133,15 +181,30 @@ function publicRoomState(room) {
       isActive: (now() - (p.lastSeenAt || 0) <= ACTIVE_WINDOW_MS),
       cooldownUntil: p.cooldownUntil || 0,
       pendingVote: p.pendingVote ? { cellId: p.pendingVote.cellId, until: p.pendingVote.until } : null,
+      hasVoted: !!p.hasVoted,
     });
   }
   players.sort((a,b) => b.markedCount - a.markedCount || a.joinedAt - b.joinedAt);
+  const playersTop = players.slice(0, 50);
+
+  const voters = getVoters(room);
+
+  const t = now();
+  const votesByCell = {};
+  for (const [cellId, m] of room.votes.entries()) {
+    let cnt = 0;
+    for (const rec of m.values()) {
+      const ts = rec?.ts || 0;
+      if (t - ts <= VOTE_WINDOW_MS) cnt++;
+    }
+    votesByCell[cellId] = cnt;
+  }
 
   return {
     roomId: room.id,
     phase: room.phase,
     board: room.board.map(c => ({ id: c.id, label: c.label, unlocked: c.unlocked, unlockedAt: c.unlockedAt })),
-    players,
+    players: playersTop,
     stats: {
       totalPlayers: room.players.size,
       activePlayers: getActiveCount(room),
@@ -149,6 +212,11 @@ function publicRoomState(room) {
       voteWindowMs: VOTE_WINDOW_MS,
       voteFailMs: VOTE_FAIL_MS,
       cooldownMs: COOLDOWN_MS,
+      votersCount: voters.length,
+      firstVoterName: room.firstVoter?.name || null,
+      votesByCell,
+      hasSound: !!room.sound,
+      soundId: room.sound?.id || null,
     },
     pendingWin: room.pendingWin,
     winner: room.winner,
@@ -183,19 +251,34 @@ function sendMarksToPlayer(room, playerId) {
   for (const sid of socks) io.to(sid).emit("syncMarks", { roomId: room.id, marks });
 }
 
-function broadcastState(room) {
-  io.to(room.id).emit("state", publicRoomState(room));
+function broadcastState(room){
+  // Throttle to at most ~10 updates/sec per room
+  if (room._broadcastQueued) return;
+  room._broadcastQueued = true;
+  setTimeout(() => {
+    room._broadcastQueued = false;
+    io.to(room.id).emit("state", publicRoomState(room));
+  }, 100);
 }
 
-function pruneOldVotes(room, cellId) {
+function pruneOldVotes(room, cellId){
   const t = now();
   const m = room.votes.get(cellId);
   if (!m) return 0;
-  for (const [pid, ts] of m.entries()) {
-    if (t - ts > VOTE_WINDOW_MS) m.delete(pid);
+  for (const [key, rec] of m.entries()){
+    const ts = rec?.ts || 0;
+    if (t - ts > VOTE_WINDOW_MS) m.delete(key);
   }
   if (m.size === 0) room.votes.delete(cellId);
   return m.size;
+}
+
+function ensureVoter(room, player) {
+  if (!player.hasVoted) {
+    player.hasVoted = true;
+    player.firstVotedAt = now();
+    if (!room.firstVoter) room.firstVoter = { playerId: player.playerId, name: player.name, at: player.firstVotedAt };
+  }
 }
 
 function handleConsensusIfReached(room, cellId) {
@@ -211,18 +294,18 @@ function handleConsensusIfReached(room, cellId) {
   const votes = voteMap ? voteMap.size : 0;
 
   if (votes >= required) {
-    // unlock permanently
     cell.unlocked = true;
     cell.unlockedAt = now();
 
-    // auto-mark for voters
     if (voteMap) {
-      for (const pid of voteMap.keys()) {
+      for (const rec of voteMap.values()) {
+        const pid = rec.playerId;
         const p = room.players.get(pid);
         if (!p) continue;
         p.marks.add(cellId);
         if (p.pendingTimer) { clearTimeout(p.pendingTimer); p.pendingTimer = null; }
         p.pendingVote = null;
+        ensureVoter(room, p);
         sendMarksToPlayer(room, pid);
       }
     }
@@ -236,14 +319,21 @@ function handleConsensusIfReached(room, cellId) {
   return false;
 }
 
-/** ---------- HTTP API (host convenience) ---------- */
+/** ---------- HTTP API ---------- */
 app.post("/api/create-room", (req, res) => {
   const { joinPassword, hostPassword } = req.body || {};
-  if (!joinPassword || !hostPassword) {
-    return res.status(400).json({ ok: false, error: "joinPassword ve hostPassword gerekli." });
-  }
+  if (!joinPassword || !hostPassword) return res.status(400).json({ ok: false, error: "joinPassword ve hostPassword gerekli." });
   const room = createRoom({ joinPassword, hostPassword });
   return res.json({ ok: true, roomId: room.id });
+});
+
+app.get("/sound/:roomId", (req, res) => {
+  const rid = String(req.params.roomId || "").toUpperCase();
+  const room = rooms.get(rid);
+  if (!room || !room.sound) return res.status(404).send("no sound");
+  res.setHeader("Content-Type", room.sound.mime || "audio/mpeg");
+  res.setHeader("Cache-Control", "no-store");
+  return res.send(room.sound.buf);
 });
 
 /** ---------- Socket.IO ---------- */
@@ -269,9 +359,16 @@ io.on("connection", (socket) => {
       if (!pid) return cb?.({ ok: false, error: "playerId eksik." });
 
       const cleanName = String(name || "").trim().slice(0, 24) || "İzleyici";
+
+      const clientIp = getClientIpFromSocket(socket);
+      const ipHash = hashKey(`${rid}|ip|${clientIp}`);
+      const deviceSig = String(payload?.deviceSig || "");
+      const devHash = deviceSig ? hashKey(`${rid}|dev|${deviceSig}`) : null;
+
       let p = room.players.get(pid);
       if (!p) {
         p = {
+          playerId: pid,
           name: cleanName,
           marks: new Set(),
           joinedAt: now(),
@@ -280,11 +377,40 @@ io.on("connection", (socket) => {
           cooldownUntil: 0,
           pendingVote: null,
           pendingTimer: null,
+          hasVoted: false,
+          firstVotedAt: 0,
         };
         room.players.set(pid, p);
       } else {
         p.name = cleanName;
         p.lastSeenAt = now();
+      }
+
+
+      // anti-abuse: per-IP / per-device caps
+      p.ipHash = ipHash;
+      p.devHash = devHash;
+
+      // device uniqueness
+      if (devHash) {
+        const existingPid = room.devToPlayer.get(devHash);
+        if (existingPid && existingPid !== pid) {
+          return cb?.({ ok: false, error: "Bu cihazdan zaten katılım var. (Aynı cihazda ikinci tarayıcı/gizli sekme engellendi)" });
+        }
+        room.devToPlayer.set(devHash, pid);
+      }
+
+      // IP cap
+      const set = room.ipToPlayers.get(ipHash) || new Set();
+      if (!set.has(pid) && set.size >= MAX_PLAYERS_PER_IP) {
+        return cb?.({ ok: false, error: "Aynı ağ/IP üzerinden çok fazla katılım var. (Çift tarayıcı engeli)" });
+      }
+      set.add(pid);
+      room.ipToPlayers.set(ipHash, set);
+
+      // rate limit join attempts per IP
+      if (!allowAction(`${rid}|join|${ipHash}`, 6, 0.2, 1)) {
+        return cb?.({ ok: false, error: "Çok hızlı deneme yapıyorsun. Biraz yavaşla." });
       }
 
       if (!room.playerSockets.has(pid)) room.playerSockets.set(pid, new Set());
@@ -335,6 +461,12 @@ io.on("connection", (socket) => {
       const p = room.players.get(pid);
       if (!p) return cb?.({ ok: false, error: "Oyuncu kaydı yok." });
 
+      // rate limit (per IP/device)
+      const rlKey = `${rid}|mark|${p.devHash || p.ipHash || pid}`;
+      if (!allowAction(rlKey, 20, 15, 1)) {
+        return cb?.({ ok: false, error: "Çok hızlı işlem. Biraz yavaşla." });
+      }
+
       const t = now();
       p.lastSeenAt = t;
 
@@ -342,14 +474,11 @@ io.on("connection", (socket) => {
         const left = p.cooldownUntil - t;
         return cb?.({ ok: false, error: `Lütfen bekleyiniz. (${Math.ceil(left/1000)}sn)`, cooldownMs: left });
       }
-
-      // anti-spam
       if (t - p.lastActionAt < 80) return cb?.({ ok: false, error: "Çok hızlı tıklıyorsun." });
       p.lastActionAt = t;
 
-      // If already unlocked: normal mark/unmark
       if (canMarkUnlocked(room, cid)) {
-        if (wantMark) p.marks.add(cid);
+        if (wantMark) { p.marks.add(cid); ensureVoter(room, p); }
         else p.marks.delete(cid);
 
         if (p.pendingTimer) { clearTimeout(p.pendingTimer); p.pendingTimer = null; }
@@ -360,12 +489,11 @@ io.on("connection", (socket) => {
         return cb?.({ ok: true, mode: "direct" });
       }
 
-      // locked cell: allow "vote"
+      // locked cell => vote
       if (!wantMark) {
-        // cancel pending vote
         if (p.pendingVote && p.pendingVote.cellId === cid) {
           const m = room.votes.get(cid);
-          if (m) { m.delete(pid); if (m.size === 0) room.votes.delete(cid); }
+          if (m) { m.delete(p.devHash || p.ipHash || pid); if (m.size === 0) room.votes.delete(cid); }
           if (p.pendingTimer) { clearTimeout(p.pendingTimer); p.pendingTimer = null; }
           p.pendingVote = null;
           broadcastState(room);
@@ -374,20 +502,21 @@ io.on("connection", (socket) => {
         return cb?.({ ok: true, mode: "noop" });
       }
 
-      // one pending vote at a time
       if (p.pendingVote && p.pendingVote.cellId !== cid) {
         const prev = p.pendingVote.cellId;
         const pm = room.votes.get(prev);
-        if (pm) { pm.delete(pid); if (pm.size === 0) room.votes.delete(prev); }
+        if (pm) { pm.delete(p.devHash || p.ipHash || pid); if (pm.size === 0) room.votes.delete(prev); }
         if (p.pendingTimer) { clearTimeout(p.pendingTimer); p.pendingTimer = null; }
         p.pendingVote = null;
       }
 
       if (!room.votes.has(cid)) room.votes.set(cid, new Map());
-      room.votes.get(cid).set(pid, t);
+      const voterKey = p.devHash || p.ipHash || pid;
+      room.votes.get(cid).set(voterKey, { playerId: pid, ts: t });
 
       const until = t + VOTE_FAIL_MS;
       p.pendingVote = { cellId: cid, until };
+      ensureVoter(room, p);
 
       p.pendingTimer = setTimeout(() => {
         try {
@@ -396,36 +525,22 @@ io.on("connection", (socket) => {
           const pp = rr.players.get(pid);
           if (!pp) return;
           const tt = now();
-
           if (pp.pendingVote && pp.pendingVote.cellId === cid) {
             const cell = rr.board.find(c => c.id === cid);
             if (cell && !cell.unlocked) {
               pp.cooldownUntil = tt + COOLDOWN_MS;
-
               const vm = rr.votes.get(cid);
-              if (vm) { vm.delete(pid); if (vm.size === 0) rr.votes.delete(cid); }
-
+              if (vm) { vm.delete(p.devHash || p.ipHash || pid); if (vm.size === 0) rr.votes.delete(cid); }
               pp.pendingVote = null;
               if (pp.pendingTimer) { clearTimeout(pp.pendingTimer); pp.pendingTimer = null; }
-
               const socks = rr.playerSockets.get(pid);
-              if (socks) {
-                for (const sid of socks) {
-                  io.to(sid).emit("notice", {
-                    type: "cooldown",
-                    message: "Bu seçim kitle tarafından doğrulanmadı. 10 saniye bekle.",
-                    cooldownMs: COOLDOWN_MS
-                  });
-                }
-              }
-
+              if (socks) for (const sid of socks) io.to(sid).emit("notice", { type: "cooldown", message: "Bu seçim kitle tarafından doğrulanmadı. 10 saniye bekle.", cooldownMs: COOLDOWN_MS });
               broadcastState(rr);
             }
           }
         } catch {}
       }, VOTE_FAIL_MS);
 
-      // check consensus immediately
       handleConsensusIfReached(room, cid);
       broadcastState(room);
 
@@ -452,13 +567,15 @@ io.on("connection", (socket) => {
       const p = room.players.get(pid);
       if (!p) return cb?.({ ok: false, error: "Oyuncu kaydı yok." });
 
+      // rate limit (per IP/device)
+      const rlKey = `${rid}|mark|${p.devHash || p.ipHash || pid}`;
+      if (!allowAction(rlKey, 20, 15, 1)) {
+        return cb?.({ ok: false, error: "Çok hızlı işlem. Biraz yavaşla." });
+      }
+
       const t = now();
       p.lastSeenAt = t;
-
-      if (p.cooldownUntil && t < p.cooldownUntil) {
-        const left = p.cooldownUntil - t;
-        return cb?.({ ok: false, error: `Lütfen bekleyiniz. (${Math.ceil(left/1000)}sn)` });
-      }
+      if (p.cooldownUntil && t < p.cooldownUntil) return cb?.({ ok: false, error: `Lütfen bekleyiniz. (${Math.ceil((p.cooldownUntil-t)/1000)}sn)` });
       if (p.pendingVote) return cb?.({ ok: false, error: "Bir kutu doğrulanmayı bekliyor. Onun sonucunu bekle." });
 
       const line = checkBingo(room, p.marks);
@@ -473,7 +590,52 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Host overrides remain (optional)
+  socket.on("hostUploadSound", (payload, cb) => {
+    try {
+      const rid = socket.data.roomId;
+      if (!rid) return cb?.({ ok: false, error: "Oturuma bağlı değilsin." });
+      const room = rooms.get(rid);
+      if (!room) return cb?.({ ok: false, error: "Oturum yok." });
+      if (!isHost(socket)) return cb?.({ ok: false, error: "Yetkisiz." });
+
+      const { mime, data } = payload || {};
+      const m = String(mime || "");
+      if (!m.startsWith(ALLOWED_AUDIO_PREFIX)) return cb?.({ ok: false, error: "Sadece audio/* dosyaları." });
+
+      const buf = Buffer.from(data || []);
+      if (!buf.length) return cb?.({ ok: false, error: "Dosya boş." });
+      if (buf.length > MAX_AUDIO_BYTES) return cb?.({ ok: false, error: "Dosya çok büyük (max ~1.25MB)." });
+
+      const id = crypto.randomBytes(6).toString("hex");
+      room.sound = { id, mime: m, buf, uploadedAt: now() };
+
+      cb?.({ ok: true, soundId: id, url: `/sound/${room.id}?v=${id}` });
+      broadcastState(room);
+    } catch (e) {
+      cb?.({ ok: false, error: "Yükleme hatası: " + (e?.message || e) });
+    }
+  });
+
+  socket.on("hostSendAlert", (_, cb) => {
+    try {
+      const rid = socket.data.roomId;
+      if (!rid) return cb?.({ ok: false, error: "Oturuma bağlı değilsin." });
+      const room = rooms.get(rid);
+      if (!room) return cb?.({ ok: false, error: "Oturum yok." });
+      if (!isHost(socket)) return cb?.({ ok: false, error: "Yetkisiz." });
+
+      if (room.sound) {
+        const url = `/sound/${room.id}?v=${room.sound.id}`;
+        io.to(room.id).emit("playAlert", { url });
+      } else {
+        io.to(room.id).emit("playAlert", { beep: true });
+      }
+      cb?.({ ok: true });
+    } catch (e) {
+      cb?.({ ok: false, error: "Uyarı hatası: " + (e?.message || e) });
+    }
+  });
+
   socket.on("hostUnlockCell", (payload, cb) => {
     try {
       const rid = socket.data.roomId;
@@ -500,7 +662,7 @@ io.on("connection", (socket) => {
           }
         }
         room.votes.delete(cid);
-        for (const pid of room.players.keys()) sendMarksToPlayer(room, pid);
+        for (const pid2 of room.players.keys()) sendMarksToPlayer(room, pid2);
       } else {
         io.to(room.id).emit("pulse", { type: "unlock", cellId: cid, label: cell.label, by: "host" });
       }
@@ -526,6 +688,7 @@ io.on("connection", (socket) => {
         room.winner = { ...room.pendingWin, confirmedAt: now() };
         room.pendingWin = null;
         room.phase = "ended";
+        io.to(room.id).emit("pulse", { type: "winner" });
       } else if (decision === "reject") {
         room.pendingWin = null;
         room.phase = "running";
@@ -550,19 +713,21 @@ io.on("connection", (socket) => {
 
       room.board.forEach(c => { c.unlocked = false; c.unlockedAt = null; });
       room.votes.clear();
-
       for (const p of room.players.values()) {
         p.marks.clear();
         p.cooldownUntil = 0;
         p.pendingVote = null;
         if (p.pendingTimer) { clearTimeout(p.pendingTimer); p.pendingTimer = null; }
+        p.hasVoted = false;
+        p.firstVotedAt = 0;
       }
-
       room.pendingWin = null;
       room.winner = null;
       room.phase = "running";
+      room.firstVoter = null;
 
-      for (const pid of room.players.keys()) sendMarksToPlayer(room, pid);
+      for (const pid2 of room.players.keys()) sendMarksToPlayer(room, pid2);
+
       cb?.({ ok: true });
       broadcastState(room);
     } catch (e) {
@@ -585,7 +750,7 @@ io.on("connection", (socket) => {
           const sset = room.playerSockets.get(pid);
           if (sset) {
             sset.delete(socket.id);
-            if (sset.size === 0) room.playerSockets.delete(pid);
+            if (sset.size === 0) room.playerSockets.delete(p.devHash || p.ipHash || pid);
           }
         }
       }
@@ -593,6 +758,4 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`Eren Bingo running on http://localhost:${PORT}`);
-});
+server.listen(PORT, () => console.log(`Eren Bingo running on http://localhost:${PORT}`));

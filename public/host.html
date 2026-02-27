@@ -31,9 +31,9 @@
         <div class="panel">
           <div class="panel-title">Yeni Oturum Oluştur</div>
           <label>İzleyici Şifresi</label>
-          <input id="newJoinPass" placeholder="izleyici şifresi" type="password" />
+          <div class="pw-wrap"><input id="newJoinPass" placeholder="izleyici şifresi" type="password" /><button class="pw-eye" type="button" data-target="newJoinPass" aria-label="Göster/Gizle">👁</button></div>
           <label>Host Şifresi</label>
-          <input id="newHostPass" placeholder="host şifresi" type="password" />
+          <div class="pw-wrap"><input id="newHostPass" placeholder="host şifresi" type="password" /><button class="pw-eye" type="button" data-target="newHostPass" aria-label="Göster/Gizle">👁</button></div>
           <button class="btn primary" id="createRoomBtn">Oturum oluştur</button>
           <div class="tiny" id="createOut"></div>
         </div>
@@ -43,24 +43,61 @@
           <label>Oturum Kodu</label>
           <input id="roomId" placeholder="Örn: Q7K9M2" />
           <label>Host Şifresi</label>
-          <input id="hostPass" placeholder="••••••••" type="password" />
+          <div class="pw-wrap"><input id="hostPass" placeholder="••••••••" type="password" /><button class="pw-eye" type="button" data-target="hostPass" aria-label="Göster/Gizle">👁</button></div>
           <button class="btn" id="connectBtn">Bağlan</button>
           <div class="error" id="connectErr"></div>
         </div>
       </div>
     </section>
 
+
+    <section class="card" id="audioCard">
+      <div class="card-head">
+        <div class="card-title">Sesli Uyarı</div>
+        <div class="card-sub">Bir ses dosyası yükle ve tek tuşla tüm katılımcılara çaldır.</div>
+      </div>
+      <div class="audio-wrap">
+        <div class="audio-row">
+          <input id="audioFile" type="file" accept="audio/*" />
+          <button class="btn" id="uploadAudioBtn">Yükle</button>
+          <button class="btn primary" id="sendAlertBtn" disabled>Uyarı Gönder</button>
+        </div>
+        <div class="tiny" id="audioStatus">Ses dosyası yok.</div>
+      </div>
+    </section>
+
+
     <section class="card">
       <div class="card-head">
         <div class="card-title">Kutular</div>
         <div class="card-sub">Bir ifade söylendiğinde ilgili kutuyu “AÇ” yap. İzleyiciler sadece açılan kutuları işaretleyebilir.</div>
       </div>
-      <div class="grid" id="grid"></div>
+      <div class="board-shell">
+        <img class="board-img" src="/ErenBingo.png" alt="Bingo" />
+        <div class="board-overlay" id="grid"></div>
+      </div>
       <div class="controls">
         <button class="btn danger" id="resetBtn" disabled>Oyunu Sıfırla</button>
         <div class="hint" id="hint"></div>
       </div>
     </section>
+
+
+    <section class="card" id="audioCard">
+      <div class="card-head">
+        <div class="card-title">Sesli Uyarı</div>
+        <div class="card-sub">Bir ses dosyası yükle ve tek tuşla tüm katılımcılara çaldır.</div>
+      </div>
+      <div class="audio-wrap">
+        <div class="audio-row">
+          <input id="audioFile" type="file" accept="audio/*" />
+          <button class="btn" id="uploadAudioBtn">Yükle</button>
+          <button class="btn primary" id="sendAlertBtn" disabled>Uyarı Gönder</button>
+        </div>
+        <div class="tiny" id="audioStatus">Ses dosyası yok.</div>
+      </div>
+    </section>
+
 
     <section class="card">
       <div class="card-head">
@@ -77,6 +114,23 @@
         </div>
       </div>
     </section>
+
+
+    <section class="card" id="audioCard">
+      <div class="card-head">
+        <div class="card-title">Sesli Uyarı</div>
+        <div class="card-sub">Bir ses dosyası yükle ve tek tuşla tüm katılımcılara çaldır.</div>
+      </div>
+      <div class="audio-wrap">
+        <div class="audio-row">
+          <input id="audioFile" type="file" accept="audio/*" />
+          <button class="btn" id="uploadAudioBtn">Yükle</button>
+          <button class="btn primary" id="sendAlertBtn" disabled>Uyarı Gönder</button>
+        </div>
+        <div class="tiny" id="audioStatus">Ses dosyası yok.</div>
+      </div>
+    </section>
+
 
     <section class="card">
       <div class="card-head">
