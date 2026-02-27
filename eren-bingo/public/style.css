@@ -289,14 +289,14 @@ input:focus{ border-color: rgba(138,125,255,.55); box-shadow: 0 0 0 3px rgba(138
 .board-img{ width:100%; display:block; }
 .board-overlay{
   position:absolute;
-  left: 6.8%;
-  right: 6.8%;
-  top: 25.8%;
-  bottom: 13.0%;
+  left: 12.9%;
+  right: 15.1%;
+  top: 31.4%;
+  bottom: 3.2%;
   display:grid;
   grid-template-columns: repeat(4, 1fr);
   grid-template-rows: repeat(4, 1fr);
-  gap: 1.6%;
+  gap: 1.05%;
 }
 
 /* Overlay cells */

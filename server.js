@@ -68,10 +68,6 @@ const MAX_VOTES        = 12;
 const MAX_PLAYERS_PER_IP = 1;          // "strict": same IP'den 1 oyuncu (istersen 2 yap)
 const MAX_PLAYERS_PER_DEVICE = 1;      // aynı cihaz imzasından 1 oyuncu
 
-/** ---------- Audio (host uploads) ---------- */
-const MAX_AUDIO_BYTES = 1_250_000;
-const ALLOWED_AUDIO_PREFIX = "audio/";
-
 /** ---------- In-memory rooms ---------- */
 const rooms = new Map();
 
@@ -133,7 +129,6 @@ function createRoom({ joinPassword, hostPassword }) {
     winner: null,
     phase: "running",
     firstVoter: null,
-    sound: null,
     ipToPlayers: new Map(),     // ipHash -> Set(playerId)
     devToPlayer: new Map(),     // devHash -> playerId
     _broadcastQueued: false,
@@ -215,8 +210,6 @@ function publicRoomState(room) {
       votersCount: voters.length,
       firstVoterName: room.firstVoter?.name || null,
       votesByCell,
-      hasSound: !!room.sound,
-      soundId: room.sound?.id || null,
     },
     pendingWin: room.pendingWin,
     winner: room.winner,
@@ -327,8 +320,6 @@ app.post("/api/create-room", (req, res) => {
   return res.json({ ok: true, roomId: room.id });
 });
 
-app.get("/sound/:roomId", (req, res) => {
-  const rid = String(req.params.roomId || "").toUpperCase();
   const room = rooms.get(rid);
   if (!room || !room.sound) return res.status(404).send("no sound");
   res.setHeader("Content-Type", room.sound.mime || "audio/mpeg");
@@ -587,52 +578,6 @@ io.on("connection", (socket) => {
       broadcastState(room);
     } catch (e) {
       cb?.({ ok: false, error: "Sunucu hatası: " + (e?.message || e) });
-    }
-  });
-
-  socket.on("hostUploadSound", (payload, cb) => {
-    try {
-      const rid = socket.data.roomId;
-      if (!rid) return cb?.({ ok: false, error: "Oturuma bağlı değilsin." });
-      const room = rooms.get(rid);
-      if (!room) return cb?.({ ok: false, error: "Oturum yok." });
-      if (!isHost(socket)) return cb?.({ ok: false, error: "Yetkisiz." });
-
-      const { mime, data } = payload || {};
-      const m = String(mime || "");
-      if (!m.startsWith(ALLOWED_AUDIO_PREFIX)) return cb?.({ ok: false, error: "Sadece audio/* dosyaları." });
-
-      const buf = Buffer.from(data || []);
-      if (!buf.length) return cb?.({ ok: false, error: "Dosya boş." });
-      if (buf.length > MAX_AUDIO_BYTES) return cb?.({ ok: false, error: "Dosya çok büyük (max ~1.25MB)." });
-
-      const id = crypto.randomBytes(6).toString("hex");
-      room.sound = { id, mime: m, buf, uploadedAt: now() };
-
-      cb?.({ ok: true, soundId: id, url: `/sound/${room.id}?v=${id}` });
-      broadcastState(room);
-    } catch (e) {
-      cb?.({ ok: false, error: "Yükleme hatası: " + (e?.message || e) });
-    }
-  });
-
-  socket.on("hostSendAlert", (_, cb) => {
-    try {
-      const rid = socket.data.roomId;
-      if (!rid) return cb?.({ ok: false, error: "Oturuma bağlı değilsin." });
-      const room = rooms.get(rid);
-      if (!room) return cb?.({ ok: false, error: "Oturum yok." });
-      if (!isHost(socket)) return cb?.({ ok: false, error: "Yetkisiz." });
-
-      if (room.sound) {
-        const url = `/sound/${room.id}?v=${room.sound.id}`;
-        io.to(room.id).emit("playAlert", { url });
-      } else {
-        io.to(room.id).emit("playAlert", { beep: true });
-      }
-      cb?.({ ok: true });
-    } catch (e) {
-      cb?.({ ok: false, error: "Uyarı hatası: " + (e?.message || e) });
     }
   });
 

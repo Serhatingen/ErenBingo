@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Eren Aktan – Bingo Host</title>
-  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/style.css?v=8" />
 </head>
 <body>
   <header class="topbar">
@@ -49,25 +49,7 @@
         </div>
       </div>
     </section>
-
-
-    <section class="card" id="audioCard">
-      <div class="card-head">
-        <div class="card-title">Sesli Uyarı</div>
-        <div class="card-sub">Bir ses dosyası yükle ve tek tuşla tüm katılımcılara çaldır.</div>
-      </div>
-      <div class="audio-wrap">
-        <div class="audio-row">
-          <input id="audioFile" type="file" accept="audio/*" />
-          <button class="btn" id="uploadAudioBtn">Yükle</button>
-          <button class="btn primary" id="sendAlertBtn" disabled>Uyarı Gönder</button>
-        </div>
-        <div class="tiny" id="audioStatus">Ses dosyası yok.</div>
-      </div>
-    </section>
-
-
-    <section class="card">
+<section class="card">
       <div class="card-head">
         <div class="card-title">Kutular</div>
         <div class="card-sub">Bir ifade söylendiğinde ilgili kutuyu “AÇ” yap. İzleyiciler sadece açılan kutuları işaretleyebilir.</div>
@@ -81,25 +63,7 @@
         <div class="hint" id="hint"></div>
       </div>
     </section>
-
-
-    <section class="card" id="audioCard">
-      <div class="card-head">
-        <div class="card-title">Sesli Uyarı</div>
-        <div class="card-sub">Bir ses dosyası yükle ve tek tuşla tüm katılımcılara çaldır.</div>
-      </div>
-      <div class="audio-wrap">
-        <div class="audio-row">
-          <input id="audioFile" type="file" accept="audio/*" />
-          <button class="btn" id="uploadAudioBtn">Yükle</button>
-          <button class="btn primary" id="sendAlertBtn" disabled>Uyarı Gönder</button>
-        </div>
-        <div class="tiny" id="audioStatus">Ses dosyası yok.</div>
-      </div>
-    </section>
-
-
-    <section class="card">
+<section class="card">
       <div class="card-head">
         <div class="card-title">Kazanan Doğrulama</div>
         <div class="card-sub">İlk bingo iddiası buraya “beklemede” düşer. Onaylarsan oyun biter.</div>
@@ -114,25 +78,7 @@
         </div>
       </div>
     </section>
-
-
-    <section class="card" id="audioCard">
-      <div class="card-head">
-        <div class="card-title">Sesli Uyarı</div>
-        <div class="card-sub">Bir ses dosyası yükle ve tek tuşla tüm katılımcılara çaldır.</div>
-      </div>
-      <div class="audio-wrap">
-        <div class="audio-row">
-          <input id="audioFile" type="file" accept="audio/*" />
-          <button class="btn" id="uploadAudioBtn">Yükle</button>
-          <button class="btn primary" id="sendAlertBtn" disabled>Uyarı Gönder</button>
-        </div>
-        <div class="tiny" id="audioStatus">Ses dosyası yok.</div>
-      </div>
-    </section>
-
-
-    <section class="card">
+<section class="card">
       <div class="card-head">
         <div class="card-title">Skor Tahtası</div>
         <div class="card-sub">Kim kaç kutu işaretledi (sadece eğlence amaçlı).</div>
@@ -143,6 +89,6 @@
   </main>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/host.js"></script>
+  <script src="/host.js?v=8"></script>
 </body>
 </html>

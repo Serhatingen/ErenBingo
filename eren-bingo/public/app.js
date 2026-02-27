@@ -67,6 +67,7 @@ function getOrCreatePlayerId(){
 }
 
 function showJoinModal(show){
+  if (!joinModal) return;
   joinModal.classList.toggle("show", !!show);
 }
 
@@ -347,24 +348,6 @@ socket.on("notice", (n) => {
 socket.on("pulse", (p) => {
   if (!p) return;
   if (p.type === "unlock") { if (audioEnabled) playBeep(); }
-});
-
-socket.on("playAlert", async (p) => {
-  try {
-    armAudioOnce();
-    if (!audioEnabled) return;
-    if (!audioArmed) {
-      hint.textContent = "Sesli uyarı var. Ses için bir yere tıkla.";
-      return;
-    }
-    if (p?.beep) { playBeep(); return; }
-    const url = p?.url;
-    if (!url) return;
-    if (alertAudio) { alertAudio.pause(); alertAudio = null; }
-    alertAudio = new Audio(url);
-    alertAudio.volume = 0.9;
-    await alertAudio.play();
-  } catch {}
 });
 
 let hbTimer = null;
