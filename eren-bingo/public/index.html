@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Eren Aktan – Yayın Bingosu</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-title">EREN AKTAN</div>
+        <div class="brand-sub">YAYIN BİNGOSU</div>
+      </div>
+      <div class="right">
+        <div class="pill" id="roomPill">Oturum: —</div>
+        <div class="pill" id="phasePill">Durum: —</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">İzleyici Paneli</div>
+        <div class="card-sub">Yayıncı “oldu” dediği anda kutu açılır. Açılan kutuları sen işaretlersin. Bingo yapınca “BINGO!” bas.</div>
+      </div>
+
+      <div class="board-shell">
+        <img class="board-img" src="/ErenBingo.png" alt="Bingo" />
+        <div class="board-overlay" id="grid"></div>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="bingoBtn" disabled>BINGO!</button>
+        <div class="hint" id="hint"></div>
+      </div>
+
+      <div class="status-row" id="statusRow"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">Skor Tahtası</div>
+        <div class="card-sub">En çok işaretleyen en hızlı değil, ama eğlenceli bir nabız verir.</div>
+      </div>
+      <div class="players" id="players"></div>
+    </section>
+<section class="card" id="countsCard">
+      <div class="card-head">
+        <div class="card-title">Katılım Özeti</div>
+        <div class="card-sub">Ağır listeler yok; sadece sayılar ve ilk oy bilgisi.</div>
+      </div>
+      <div class="lists-wrap">
+        <div class="listbox">
+          <div class="listtitle">Toplam katılımcı</div>
+          <div class="listcontent" id="totalCount">—</div>
+        </div>
+        <div class="listbox">
+          <div class="listtitle">Aktif katılımcı</div>
+          <div class="listcontent" id="activeCount">—</div>
+        </div>
+        <div class="listbox">
+          <div class="listtitle">Oy kullanan</div>
+          <div class="listcontent" id="votersCount">—</div>
+        </div>
+        <div class="listbox">
+          <div class="listtitle">İlk oy kullanan</div>
+          <div class="listcontent" id="firstVoterName">—</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" id="joinModal">
+    <div class="modal">
+      <div class="modal-title">Oturuma Katıl</div>
+      <div class="modal-sub">Yayıncıdan aldığın oturum kodunu ve şifreyi gir.</div>
+
+      <div class="form">
+        <label>Oturum Kodu</label>
+        <input id="roomId" placeholder="Örn: Q7K9M2" autocomplete="off" />
+
+        <label>Oturum Şifresi</label>
+        <div class="pw-wrap"><input id="joinPass" placeholder="••••••••" type="password" autocomplete="off" /><button class="pw-eye" type="button" data-target="joinPass" aria-label="Göster/Gizle">👁</button></div>
+
+        <label>İsmin (ekranda görünecek)</label>
+        <input id="displayName" placeholder="Serhat" maxlength="24" autocomplete="off" />
+
+        <button class="btn primary" id="joinBtn">Katıl</button>
+        <div class="error" id="joinError"></div>
+
+        <div class="tiny">Not: Buradaki “anti-hile” mantığı şöyle: Yayıncı bir kutuyu açmadan o kutuyu işaretleyemezsin. Önceden full işaretleyip “bingo” deme olayı çöker.</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

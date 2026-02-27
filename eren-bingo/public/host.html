@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Eren Aktan – Bingo Host</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-title">HOST PANEL</div>
+        <div class="brand-sub">Yayıncı doğrular, kutuları açar/kapatır</div>
+      </div>
+      <div class="right">
+        <div class="pill" id="roomPill">Oturum: —</div>
+        <div class="pill" id="phasePill">Durum: —</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">Oturum</div>
+        <div class="card-sub">Yeni oturum oluştur veya mevcut oturuma host olarak bağlan.</div>
+      </div>
+
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-title">Yeni Oturum Oluştur</div>
+          <label>İzleyici Şifresi</label>
+          <div class="pw-wrap"><input id="newJoinPass" placeholder="izleyici şifresi" type="password" /><button class="pw-eye" type="button" data-target="newJoinPass" aria-label="Göster/Gizle">👁</button></div>
+          <label>Host Şifresi</label>
+          <div class="pw-wrap"><input id="newHostPass" placeholder="host şifresi" type="password" /><button class="pw-eye" type="button" data-target="newHostPass" aria-label="Göster/Gizle">👁</button></div>
+          <button class="btn primary" id="createRoomBtn">Oturum oluştur</button>
+          <div class="tiny" id="createOut"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">Mevcut Oturuma Bağlan</div>
+          <label>Oturum Kodu</label>
+          <input id="roomId" placeholder="Örn: Q7K9M2" />
+          <label>Host Şifresi</label>
+          <div class="pw-wrap"><input id="hostPass" placeholder="••••••••" type="password" /><button class="pw-eye" type="button" data-target="hostPass" aria-label="Göster/Gizle">👁</button></div>
+          <button class="btn" id="connectBtn">Bağlan</button>
+          <div class="error" id="connectErr"></div>
+        </div>
+      </div>
+    </section>
+
+
+    <section class="card" id="audioCard">
+      <div class="card-head">
+        <div class="card-title">Sesli Uyarı</div>
+        <div class="card-sub">Bir ses dosyası yükle ve tek tuşla tüm katılımcılara çaldır.</div>
+      </div>
+      <div class="audio-wrap">
+        <div class="audio-row">
+          <input id="audioFile" type="file" accept="audio/*" />
+          <button class="btn" id="uploadAudioBtn">Yükle</button>
+          <button class="btn primary" id="sendAlertBtn" disabled>Uyarı Gönder</button>
+        </div>
+        <div class="tiny" id="audioStatus">Ses dosyası yok.</div>
+      </div>
+    </section>
+
+
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">Kutular</div>
+        <div class="card-sub">Bir ifade söylendiğinde ilgili kutuyu “AÇ” yap. İzleyiciler sadece açılan kutuları işaretleyebilir.</div>
+      </div>
+      <div class="board-shell">
+        <img class="board-img" src="/ErenBingo.png" alt="Bingo" />
+        <div class="board-overlay" id="grid"></div>
+      </div>
+      <div class="controls">
+        <button class="btn danger" id="resetBtn" disabled>Oyunu Sıfırla</button>
+        <div class="hint" id="hint"></div>
+      </div>
+    </section>
+
+
+    <section class="card" id="audioCard">
+      <div class="card-head">
+        <div class="card-title">Sesli Uyarı</div>
+        <div class="card-sub">Bir ses dosyası yükle ve tek tuşla tüm katılımcılara çaldır.</div>
+      </div>
+      <div class="audio-wrap">
+        <div class="audio-row">
+          <input id="audioFile" type="file" accept="audio/*" />
+          <button class="btn" id="uploadAudioBtn">Yükle</button>
+          <button class="btn primary" id="sendAlertBtn" disabled>Uyarı Gönder</button>
+        </div>
+        <div class="tiny" id="audioStatus">Ses dosyası yok.</div>
+      </div>
+    </section>
+
+
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">Kazanan Doğrulama</div>
+        <div class="card-sub">İlk bingo iddiası buraya “beklemede” düşer. Onaylarsan oyun biter.</div>
+      </div>
+
+      <div class="pending" id="pendingBox">
+        <div class="pending-title">Bekleyen kazanan: —</div>
+        <div class="pending-sub">—</div>
+        <div class="pending-actions">
+          <button class="btn primary" id="approveBtn" disabled>Onayla</button>
+          <button class="btn" id="rejectBtn" disabled>Reddet</button>
+        </div>
+      </div>
+    </section>
+
+
+    <section class="card" id="audioCard">
+      <div class="card-head">
+        <div class="card-title">Sesli Uyarı</div>
+        <div class="card-sub">Bir ses dosyası yükle ve tek tuşla tüm katılımcılara çaldır.</div>
+      </div>
+      <div class="audio-wrap">
+        <div class="audio-row">
+          <input id="audioFile" type="file" accept="audio/*" />
+          <button class="btn" id="uploadAudioBtn">Yükle</button>
+          <button class="btn primary" id="sendAlertBtn" disabled>Uyarı Gönder</button>
+        </div>
+        <div class="tiny" id="audioStatus">Ses dosyası yok.</div>
+      </div>
+    </section>
+
+
+    <section class="card">
+      <div class="card-head">
+        <div class="card-title">Skor Tahtası</div>
+        <div class="card-sub">Kim kaç kutu işaretledi (sadece eğlence amaçlı).</div>
+      </div>
+      <div class="players" id="players"></div>
+    </section>
+
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/host.js"></script>
+</body>
+</html>
