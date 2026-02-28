@@ -7,8 +7,21 @@ const { Server } = require("socket.io");
 const PORT = process.env.PORT || 3000;
 const app = express();
 app.use(express.json({ limit: "2mb" }));
+app.use((req, res, next) => {
+  // Avoid stale HTML in browsers/CDNs
+  if (req.path === "/" || req.path.endsWith(".html")) {
+    res.setHeader("Cache-Control", "no-store");
+  }
+  next();
+});
 app.use(express.static(path.join(__dirname, "public")));
 app.set("trust proxy", 1);
+
+
+app.get("/", (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
 
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
