@@ -320,12 +320,7 @@ app.post("/api/create-room", (req, res) => {
   return res.json({ ok: true, roomId: room.id });
 });
 
-  const room = rooms.get(rid);
-  if (!room || !room.sound) return res.status(404).send("no sound");
-  res.setHeader("Content-Type", room.sound.mime || "audio/mpeg");
-  res.setHeader("Cache-Control", "no-store");
-  return res.send(room.sound.buf);
-});
+
 
 /** ---------- Socket.IO ---------- */
 io.on("connection", (socket) => {
