@@ -410,3 +410,6 @@ body.debug-overlay .cell{
   user-select: none;
   pointer-events: none;
 }
+
+
+.version-badge{position:fixed;right:10px;bottom:10px;z-index:9999;font:12px/1.2 system-ui;color:rgba(255,255,255,.75);background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.12);padding:6px 8px;border-radius:10px;backdrop-filter: blur(6px);} 

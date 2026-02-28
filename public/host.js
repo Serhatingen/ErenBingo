@@ -27,12 +27,6 @@ const rejectBtn = document.getElementById("rejectBtn");
 
 const playersEl = document.getElementById("players");
 
-// Audio
-const audioFile = document.getElementById("audioFile");
-const uploadAudioBtn = document.getElementById("uploadAudioBtn");
-const sendAlertBtn = document.getElementById("sendAlertBtn");
-const audioStatus = document.getElementById("audioStatus");
-
 let state = null;
 
 function updateTop(){
@@ -129,13 +123,7 @@ function renderStats(){
   const s = state.stats;
   const fv = s.firstVoterName ? `İlk oy: ${s.firstVoterName}` : "İlk oy: —";
   hint.textContent = `Aktif: ${s.activePlayers}/${s.totalPlayers} — Oy kullanan: ${s.votersCount} — Eşik: ${s.requiredVotes} oy / ${Math.round((s.voteWindowMs||6000)/1000)}sn — ${fv}`;
-  if (audioStatus) audioStatus.textContent = s.hasSound ? `Ses yüklü (id: ${s.soundId}).` : "Ses dosyası yok.";
-  if (sendAlertBtn) sendAlertBtn.disabled = !s.hasSound;
-}
-
-function hydrateUI(){
-  updateTop();
-  renderBoard();
+  if (  renderBoard();
   renderPlayers();
   renderPending();
   renderStats();
@@ -205,15 +193,6 @@ resetBtn?.addEventListener("click", () => {
 });
 
 /* Audio upload & alert */
-uploadAudioBtn?.addEventListener("click", async () => {
-  if (!audioFile?.files?.length) {
-    audioStatus.textContent = "Önce bir audio dosyası seç.";
-    return;
-  }
-  const file = audioFile.files[0];
-  audioStatus.textContent = "Yükleniyor…";
-  try {
-    const buf = await file.arrayBuffer();
     socket.emit("hostUploadSound", { mime: file.type || "audio/mpeg", data: buf }, (res) => {
       audioStatus.textContent = res?.ok ? "Yüklendi." : (res?.error || "Yükleme başarısız.");
     });
@@ -222,9 +201,6 @@ uploadAudioBtn?.addEventListener("click", async () => {
   }
 });
 
-sendAlertBtn?.addEventListener("click", () => {
-  socket.emit("hostSendAlert", {}, (res) => {
-    audioStatus.textContent = res?.ok ? "Uyarı gönderildi." : (res?.error || "Uyarı gönderilemedi.");
   });
 });
 

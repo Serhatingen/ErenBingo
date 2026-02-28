@@ -320,8 +320,6 @@ app.post("/api/create-room", (req, res) => {
   return res.json({ ok: true, roomId: room.id });
 });
 
-
-
 /** ---------- Socket.IO ---------- */
 io.on("connection", (socket) => {
   socket.on("joinRoom", (payload, cb) => {
