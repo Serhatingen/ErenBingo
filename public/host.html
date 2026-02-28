@@ -34,7 +34,7 @@
           <div class="pw-wrap"><input id="newJoinPass" placeholder="izleyici şifresi" type="password" /><button class="pw-eye" type="button" data-target="newJoinPass" aria-label="Göster/Gizle">👁</button></div>
           <label>Host Şifresi</label>
           <div class="pw-wrap"><input id="newHostPass" placeholder="host şifresi" type="password" /><button class="pw-eye" type="button" data-target="newHostPass" aria-label="Göster/Gizle">👁</button></div>
-          <button class="btn primary" id="createRoomBtn">Oturum oluştur</button>
+          <button class="btn primary" id="createRoomBtn" type="button">Oturum oluştur</button>
           <div class="tiny" id="createOut"></div>
         </div>
 
@@ -44,7 +44,7 @@
           <input id="roomId" placeholder="Örn: Q7K9M2" />
           <label>Host Şifresi</label>
           <div class="pw-wrap"><input id="hostPass" placeholder="••••••••" type="password" /><button class="pw-eye" type="button" data-target="hostPass" aria-label="Göster/Gizle">👁</button></div>
-          <button class="btn" id="connectBtn">Bağlan</button>
+          <button class="btn" id="connectBtn" type="button">Bağlan</button>
           <div class="error" id="connectErr"></div>
         </div>
       </div>
@@ -59,7 +59,7 @@
         <div class="board-overlay" id="grid"></div>
       </div>
       <div class="controls">
-        <button class="btn danger" id="resetBtn" disabled>Oyunu Sıfırla</button>
+        <button class="btn danger" id="resetBtn" disabled type="button">Oyunu Sıfırla</button>
         <div class="hint" id="hint"></div>
       </div>
     </section>
@@ -73,8 +73,8 @@
         <div class="pending-title">Bekleyen kazanan: —</div>
         <div class="pending-sub">—</div>
         <div class="pending-actions">
-          <button class="btn primary" id="approveBtn" disabled>Onayla</button>
-          <button class="btn" id="rejectBtn" disabled>Reddet</button>
+          <button class="btn primary" id="approveBtn" disabled type="button">Onayla</button>
+          <button class="btn" id="rejectBtn" disabled type="button">Reddet</button>
         </div>
       </div>
     </section>
@@ -89,10 +89,10 @@
   </main>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/host.js?v=9.1"></script>
+  <script src="/host.js?v=9.2"></script>
 <div class="version-badge">v9</div>
 
-  <div id="verBadge" style="position:fixed;right:10px;bottom:10px;z-index:9999;font:12px/1.2 system-ui;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.85);backdrop-filter: blur(6px);">v9.1</div>
+  <div id="verBadge" style="position:fixed;right:10px;bottom:10px;z-index:9999;font:12px/1.2 system-ui;padding:6px 10px;border-radius:12px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.85);backdrop-filter: blur(6px);">v9.2</div>
 
 </body>
 </html>

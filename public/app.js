@@ -1,3 +1,4 @@
+window.__APP_JS_LOADED__ = true;
 /* global io */
 const socket = io();
 

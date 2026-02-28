@@ -1,3 +1,5 @@
+document.addEventListener('DOMContentLoaded', () => {
+window.__HOST_JS_LOADED__ = true;
 const qs = new URLSearchParams(location.search);
 if (qs.get('debug') === '1') document.body.classList.add('debug-overlay');
 
@@ -220,3 +222,5 @@ socket.on("state", (s) => {
 });
 
 hydrateUI();
+
+});
